@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Component</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <!-- Add Firebase products that you want to use -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <!-- Add LZ-string library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: atob("QUl6YVN5QUlSTVJTMVVOV01YVzF3cldzdlhaYVlSQlZrcTFmQXBF"),
+            authDomain: "ui-live-74ecf.firebaseapp.com",
+            projectId: "ui-live-74ecf",
+            storageBucket: "ui-live-74ecf.appspot.com",
+            messagingSenderId: "1093999862175",
+            appId: "1:1093999862175:web:9de1f465fca24f6a7c9daa",
+            measurementId: "G-S4308J9PQN"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+        const db = firebase.firestore();
+
+        const AuthForm = ({ onLogin }) => {
+            const [username, setUsername] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [error, setError] = React.useState('');
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                try {
+                    // Convert username to email format
+                    const email = `${username}@admin.com`;
+                    await auth.signInWithEmailAndPassword(email, password);
+                    onLogin();
+                } catch (error) {
+                    setError('Invalid username or password');
+                }
+            };
+
+            return (
+                <form onSubmit={handleLogin} className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
+                    <h2 className="text-2xl font-bold mb-6">Admin Login</h2>
+                    {error && <p className="text-red-500 mb-4">{error}</p>}
+                    <div className="mb-4">
+                        <label htmlFor="username" className="block mb-2 font-semibold">Username</label>
+                        <input
+                            type="text"
+                            id="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-md"
+                            required
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <label htmlFor="password" className="block mb-2 font-semibold">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-md"
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">
+                        Login
+                    </button>
+                </form>
+            );
+        };
+
+        const AdminForm = () => {
+            const [formData, setFormData] = React.useState({
+                name: '',
+                image: null,
+                category: '',
+                tags: '',
+                fullVersionUrl: '',
+                rawFigmaMetadata: '',
+            });
+
+            const [message, setMessage] = React.useState({ text: '', type: '' });
+            const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+            const metadataRef = React.useRef(null);
+
+            React.useEffect(() => {
+                const target = metadataRef.current;
+
+                const handlePaste = (event) => {
+                    event.preventDefault();
+                    
+                    // Get the clipboard data in its raw form
+                    const clipboardData = event.clipboardData || window.clipboardData;
+                    let pastedData = '';
+
+                    // Try to get HTML content first
+                    pastedData = clipboardData.getData('text/html');
+
+                    // If no HTML content, fall back to plain text
+                    if (!pastedData) {
+                        pastedData = clipboardData.getData('text');
+                    }
+
+                    // Update the form data with the pasted content
+                    setFormData(prevData => ({
+                        ...prevData,
+                        rawFigmaMetadata: pastedData
+                    }));
+                };
+
+                if (target) {
+                    target.addEventListener("paste", handlePaste);
+                }
+
+                return () => {
+                    if (target) {
+                        target.removeEventListener("paste", handlePaste);
+                    }
+                };
+            }, []);
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData({ ...formData, [name]: value });
+            };
+
+            const handleImageChange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    setFormData({ ...formData, image: e.target.files[0] });
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+
+                if (isSubmitting) return;
+
+                setIsSubmitting(true);
+
+                try {
+                    // Ensure user is authenticated
+                    if (!auth.currentUser) {
+                        setMessage({ text: 'Authentication required. Please refresh and try again.', type: 'error' });
+                        return;
+                    }
+
+                    // Validate form fields
+                    if (!formData.name || !formData.image || !formData.category || !formData.tags || !formData.fullVersionUrl || !formData.rawFigmaMetadata) {
+                        setMessage({ text: 'All fields are required', type: 'error' });
+                        return;
+                    }
+
+                    // Format the component name for use as document ID
+                    const formattedName = formData.name
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '');
+
+                    // Check if a document with this ID already exists
+                    const docRef = db.collection('freebie-components').doc(formattedName);
+                    const doc = await docRef.get();
+
+                    if (doc.exists) {
+                        setMessage({ text: 'A component with this name already exists. Please choose a different name.', type: 'error' });
+                        setIsSubmitting(false);
+                        return;
+                    }
+
+                    // Upload image to Firebase Storage
+                    const storageRef = storage.ref(`component-images/${formData.image.name}`);
+                    const snapshot = await storageRef.put(formData.image);
+                    const imageUrl = await snapshot.ref.getDownloadURL();
+
+                    // Compress the rawFigmaMetadata using LZ-string
+                    const compressedMetadata = LZString.compressToBase64(formData.rawFigmaMetadata);
+
+                    // Prepare data for Firestore
+                    const componentData = {
+                        name: formData.name,
+                        imageUrl,
+                        category: formData.category,
+                        tags: formData.tags.split(',').map(tag => tag.trim()),
+                        fullVersionUrl: formData.fullVersionUrl,
+                        rawFigmaMetadata: compressedMetadata,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        likes: 0,
+                        description: "",
+                    };
+
+                    // Add a new document to Firestore with the formatted name as the document ID
+                    await db.collection('freebie-components').doc(formattedName).set(componentData);
+
+                    setMessage({ text: 'Component added successfully!', type: 'success' });
+                    // Reset form
+                    setFormData({
+                        name: '',
+                        image: null,
+                        category: '',
+                        tags: '',
+                        fullVersionUrl: '',
+                        rawFigmaMetadata: '',
+                    });
+                    // Reset file input
+                    document.getElementById('image').value = '';
+                } catch (error) {
+                    console.error('Error adding component:', error);
+                    setMessage({ text: 'Error adding component. Please try again.', type: 'error' });
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
+            const updateCategories = async () => {
+                setIsSubmitting(true);
+                setMessage({ text: 'Updating categories...', type: 'info' });
+
+                try {
+                    const freebiesRef = db.collection('freebie-components');
+                    const snapshot = await freebiesRef.get();
+
+                    const batch = db.batch();
+
+                    snapshot.docs.forEach((doc) => {
+                        const data = doc.data();
+
+                        if (data.category === 'UI Kits') {
+                            batch.update(doc.ref, { category: 'UI Elements' });
+                        } else if (data.category === 'Presentations') {
+                            batch.update(doc.ref, { category: 'Illustrations' });
+                        }
+                    });
+
+                    await batch.commit();
+
+                    setMessage({ text: 'Categories updated successfully!', type: 'success' });
+                } catch (error) {
+                    console.error('Error updating categories:', error);
+                    setMessage({ text: 'Error updating categories. Please try again.', type: 'error' });
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
+            return (
+                <div className="container mx-auto px-4">
+                    <form onSubmit={handleSubmit} className="max-w-lg mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
+                        <h2 className="text-2xl font-bold mb-6">Add New Component</h2>
+
+                        {message.text && (
+                            <div className={`mb-4 p-2 rounded ${message.type === 'error' ? 'bg-red-100 text-red-700' : message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {message.text}
+                            </div>
+                        )}
+
+                        <div className="mb-4">
+                            <label htmlFor="name" className="block mb-2 font-semibold">Name</label>
+                            <input
+                                type="text"
+                                id="name"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border rounded-md"
+                                required
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="image" className="block mb-2 font-semibold">Image Upload</label>
+                            <input
+                                type="file"
+                                id="image"
+                                name="image"
+                                onChange={handleImageChange}
+                                accept="image/png,image/jpeg"
+                                className="w-full"
+                                required
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="category" className="block mb-2 font-semibold">Category</label>
+                            <select
+                                id="category"
+                                name="category"
+                                value={formData.category}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border rounded-md"
+                                required
+                            >
+                                <option value="">Select a category</option>
+                                <option value="Ui Elements">Ui Elements</option>
+                                <option value="Wireframes">Wireframes</option>
+                                <option value="Mockups">Mockups</option>
+                                <option value="3d Assets">3d Assets</option>
+                                <option value="Icons">Icons</option>
+                                <option value="Illustrations">Illustrations</option>
+                            </select>
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="tags" className="block mb-2 font-semibold">Tags</label>
+                            <input
+                                type="text"
+                                id="tags"
+                                name="tags"
+                                value={formData.tags}
+                                onChange={handleInputChange}
+                                placeholder="e.g., Dashboard, Crypto, Dark"
+                                className="w-full px-3 py-2 border rounded-md"
+                                required
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="fullVersionUrl" className="block mb-2 font-semibold">Full Version URL</label>
+                            <input
+                                type="url"
+                                id="fullVersionUrl"
+                                name="fullVersionUrl"
+                                value={formData.fullVersionUrl}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border rounded-md"
+                                required
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="rawFigmaMetadata" className="block mb-2 font-semibold">Meta Data</label>
+                            <textarea
+                                id="rawFigmaMetadata"
+                                name="rawFigmaMetadata"
+                                value={formData.rawFigmaMetadata}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border rounded-md"
+                                rows={4}
+                                required
+                                ref={metadataRef}
+                            ></textarea>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:bg-blue-300 mb-4"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? 'Adding Component...' : 'Add Component'}
+                        </button>
+                    </form>
+
+                    <div className="max-w-lg mx-auto mt-8">
+                        <button 
+                            onClick={updateCategories}
+                            className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 disabled:bg-green-300"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? 'Updating Categories...' : 'Update Categories'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+
+            React.useEffect(() => {
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setIsLoggedIn(!!user);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            return (
+                <div className="container mx-auto px-4">
+                    {isLoggedIn ? (
+                        <AdminForm />
+                    ) : (
+                        <AuthForm onLogin={() => setIsLoggedIn(true)} />
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+
+</html>
