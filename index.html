@@ -236,33 +236,12 @@
 
             const updateCategories = async () => {
                 setIsSubmitting(true);
-                setMessage({ text: 'Updating categories...', type: 'info' });
+                setMessage({ text: 'Category update functionality is currently disabled.', type: 'info' });
 
-                try {
-                    const freebiesRef = db.collection('freebie-components');
-                    const snapshot = await freebiesRef.get();
+                // Simulate a delay to show the message
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
-                    const batch = db.batch();
-
-                    snapshot.docs.forEach((doc) => {
-                        const data = doc.data();
-
-                        if (data.category === 'UI Kits') {
-                            batch.update(doc.ref, { category: 'UI Elements' });
-                        } else if (data.category === 'Presentations') {
-                            batch.update(doc.ref, { category: 'Illustrations' });
-                        }
-                    });
-
-                    await batch.commit();
-
-                    setMessage({ text: 'Categories updated successfully!', type: 'success' });
-                } catch (error) {
-                    console.error('Error updating categories:', error);
-                    setMessage({ text: 'Error updating categories. Please try again.', type: 'error' });
-                } finally {
-                    setIsSubmitting(false);
-                }
+                setIsSubmitting(false);
             };
 
             return (
@@ -313,12 +292,13 @@
                                 required
                             >
                                 <option value="">Select a category</option>
-                                <option value="Ui Elements">Ui Elements</option>
-                                <option value="Wireframes">Wireframes</option>
-                                <option value="Mockups">Mockups</option>
-                                <option value="3d Assets">3d Assets</option>
+                                <option value="Web">Web</option>
+                                <option value="Mobile">Mobile</option>
+                                <option value="Components">Components</option>
+                                <option value="3d">3D</option>
                                 <option value="Icons">Icons</option>
                                 <option value="Illustrations">Illustrations</option>
+                                <option value="Mockups">Mockups</option>
                             </select>
                         </div>
 
@@ -375,10 +355,10 @@
                     <div className="max-w-lg mx-auto mt-8">
                         <button 
                             onClick={updateCategories}
-                            className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 disabled:bg-green-300"
+                            className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 disabled:bg-gray-300"
                             disabled={isSubmitting}
                         >
-                            {isSubmitting ? 'Updating Categories...' : 'Update Categories'}
+                            Update Categories (Disabled)
                         </button>
                     </div>
                 </div>
